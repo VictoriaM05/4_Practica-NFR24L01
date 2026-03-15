@@ -1,0 +1,129 @@
+#include <SPI.h>        // Librería para comunicación SPI (necesaria para el nRF24L01)
+#include <nRF24L01.h>   // Definiciones internas del módulo nRF24L01
+#include <RF24.h>       // Librería principal para controlar el módulo
+
+// =========================
+// DEFINICIÓN DE PINES
+// =========================
+
+// Pines del nRF24L01 conectados al Arduino
+#define CE_PIN 9
+#define CSN_PIN 10
+
+// Pin donde está conectado el potenciómetro
+#define POT_PIN A0
+
+// Se crea el objeto radio indicando los pines CE y CSN
+RF24 radio(CE_PIN, CSN_PIN);
+
+// =========================
+// IDENTIDAD DEL DISPOSITIVO
+// =========================
+
+// Dirección del canal de comunicación (IDENTIDAD)
+// Esta dirección debe ser EXACTAMENTE la misma en el receptor
+// para que puedan comunicarse
+const byte address[6] = "ESP32";
+
+// Variables para almacenar valores
+int valorPot;
+int valorEnviar;
+
+void setup() {
+
+  // Inicialización del monitor serial
+  Serial.begin(9600);
+  Serial.println("Transmisor con potenciometro");
+
+  // =========================
+  // INICIALIZACIÓN DEL MÓDULO
+  // =========================
+
+  if (!radio.begin()) {
+    Serial.println("ERROR: nRF24 no detectado");
+    while (1); // Detiene el programa si el módulo no funciona
+  }
+
+  // =========================
+  // ALCANCE DE COMUNICACIÓN
+  // =========================
+
+  radio.setPALevel(RF24_PA_MIN);
+
+  // RF24_PA_MIN  → menor alcance, menor consumo
+  // RF24_PA_LOW
+  // RF24_PA_HIGH
+  // RF24_PA_MAX  → mayor alcance
+
+  // =========================
+  // SEGURIDAD Y ESTABILIDAD
+  // =========================
+
+  radio.setDataRate(RF24_250KBPS);
+
+  // Velocidad de transmisión
+  // 250KBPS → mayor estabilidad y mayor alcance
+  // 1MBPS
+  // 2MBPS → más rápida pero menos alcance
+
+  // =========================
+  // IDENTIDAD DE RED
+  // =========================
+
+  radio.setChannel(77);
+
+  // Canal de comunicación (0–125)
+  // Si otro dispositivo usa otro canal NO podrá comunicarse
+  // Ayuda a evitar interferencias con otras redes
+
+  // =========================
+  // CONFIGURACIÓN DE ENVÍO
+  // =========================
+
+  radio.openWritingPipe(address);  // Se define la dirección a la que se enviarán datos
+  radio.stopListening();           // Configura el módulo como TRANSMISOR
+
+  Serial.println("Listo. Enviando datos del potenciometro...");
+}
+
+void loop() {
+
+  // =========================
+  // LECTURA DE SEÑAL ANALÓGICA
+  // =========================
+
+  valorPot = analogRead(POT_PIN);  // Lee valor del potenciómetro (0–1023)
+
+  // =========================
+  // CONVERSIÓN DE DATOS
+  // =========================
+
+  valorEnviar = map(valorPot, 0, 1023, 0, 255);
+
+  // Convierte el rango de Arduino (0–1023)
+  // a un rango de 8 bits (0–255)
+
+  // =========================
+  // ENVÍO DE DATOS
+  // =========================
+
+  bool enviado = radio.write(&valorEnviar, sizeof(valorEnviar));
+
+  // Se envía el valor al receptor
+  // devuelve TRUE si se envió correctamente
+
+  // =========================
+  // MONITOREO EN SERIAL
+  // =========================
+
+  Serial.print("Potenciometro: ");
+  Serial.print(valorPot);
+
+  Serial.print(" | Enviado: ");
+  Serial.print(valorEnviar);
+
+  Serial.print(" -> ");
+  Serial.println(enviado ? "OK" : "FALLO");
+
+  delay(900);  // espera entre envíos
+} 
