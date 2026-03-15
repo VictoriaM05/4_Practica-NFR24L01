@@ -1,0 +1,114 @@
+#include <SPI.h>        // Librería para comunicación SPI
+#include <nRF24L01.h>   // Definiciones del módulo nRF24L01
+#include <RF24.h>       // Librería principal para controlar el módulo
+
+// =========================
+// DEFINICIÓN DE PINES
+// =========================
+
+// Pines de control del módulo nRF24L01
+#define CE_PIN 16
+#define CSN_PIN 10
+
+// Pines SPI personalizados
+#define SPI_SCK 12
+#define SPI_MISO 13
+#define SPI_MOSI 11
+
+// Creación del objeto radio
+RF24 radio(CE_PIN, CSN_PIN);
+
+// =========================
+// IDENTIDAD DE COMUNICACIÓN
+// =========================
+
+// Dirección que identifica la comunicación
+// Debe ser EXACTAMENTE la misma que usa el transmisor
+const byte address[6] = "00010";
+
+void setup() {
+
+  Serial.begin(115200);
+  delay(300);
+
+  // =========================
+  // INICIALIZACIÓN DEL BUS SPI
+  // =========================
+
+  SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI);
+
+  // Inicialización del módulo
+  if (!radio.begin()) {
+    Serial.println("Error NRF24");
+    while (1); // Detiene el programa si no detecta el módulo
+  }
+
+  // =========================
+  // ALCANCE DE TRANSMISIÓN
+  // =========================
+
+  radio.setPALevel(RF24_PA_MIN);
+
+  // Controla la potencia de transmisión
+  // RF24_PA_MIN → menor alcance
+  // RF24_PA_LOW
+  // RF24_PA_HIGH
+  // RF24_PA_MAX → mayor alcance
+
+  // =========================
+  // SEGURIDAD Y ESTABILIDAD
+  // =========================
+
+  radio.setDataRate(RF24_250KBPS);
+
+  // Velocidad de transmisión
+  // 250KBPS → mayor alcance y estabilidad
+  // 1MBPS
+  // 2MBPS → más rápido pero menos alcance
+
+  // =========================
+  // IDENTIDAD DE LA RED
+  // =========================
+
+  radio.setChannel(77);
+
+  // Canal de comunicación (0–125)
+  // Solo dispositivos en el mismo canal podrán comunicarse
+
+  // =========================
+  // CONFIGURACIÓN DEL RECEPTOR
+  // =========================
+
+  radio.openReadingPipe(1, address);
+
+  // Define la dirección desde la cual recibirá datos
+
+  radio.startListening();
+
+  // Pone el módulo en modo RECEPTOR
+
+  Serial.println("Receptor listo");
+}
+
+void loop() {
+
+  // =========================
+  // VERIFICAR SI HAY DATOS
+  // =========================
+
+  if (radio.available()) {
+
+    int sensorValue;
+
+    // Lee el dato recibido
+    radio.read(&sensorValue, sizeof(sensorValue));
+
+    // =========================
+    // MOSTRAR DATO RECIBIDO
+    // =========================
+
+    Serial.print("Valor recibido: ");
+    Serial.println(sensorValue);
+  }
+
+}
